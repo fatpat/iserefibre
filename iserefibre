@@ -56,6 +56,8 @@ function req {
   else
     eval "$_curl"
   fi
+
+  sleep 0.5
 }
 
 date=$(date +%Y%m%d)

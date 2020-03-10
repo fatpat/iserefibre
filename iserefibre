@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+
+# BSD 3-Clause License
+# 
+# Copyright (c) 2020, Jérôme Loyet
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# 
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+# 
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+# 
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# On arrete le programme si qqc en erreur
+set -e
+
+#
+# on log to syslog et stderr
+#
+function log {
+  logger -t iserefibre -s $*
+}
+
+#
+# curl request
+#
+function req {
+  if [ -z "$1" ]; then
+    logger -p err "Le type de requete est vide"
+    exit 1
+  fi
+
+    _curl='curl -qs -m 5 "http://www.iserefibre.fr/te/'"$1"'.php" -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0" -H "Accept: */*" -H "Accept-Language: en-US,en;q=0.5" --compressed -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" -H "X-Requested-With: XMLHttpRequest" -H "Origin: http://www.iserefibre.fr" -H "DNT: 1" -H "Connection: keep-alive" -H "Referer: http://www.iserefibre.fr/te/search.php" -H "Cookie: cookie_notice_accepted=true" -H "Pragma: no-cache" -H "Cache-Control: no-cache"'
+
+  if [ -n "$2" ]; then
+    eval "$_curl --data-urlencode '$2'"
+  else
+    eval "$_curl"
+  fi
+}
+
+date=$(date +%Y%m%d)
+dir=$(dirname $0)/$date
+log "Creation du repertoire de sortie $dir"
+test -d $dir || mkdir $dir
+
+villes=$dir/villes
+types=$dir/types
+noms=$dir/noms
+adresses=$dir/adresses
+resultats=$dir/resultats
+stats=$dir/stats
+log "Configuration des variables locales: $villes, $types, $noms, $adresses, $resultats, $stats"
+
+
+#
+# Récupération des data sur le site d'isere fibre
+#
+
+
+#
+# Villes
+#
+if [ -f $villes ]; then
+  log "Villes déjà récupérées, suivant !"
+else
+  log "Recuperation des villes ..."
+  req search | awk -vFS="'" '/<option/{for(i=2;i<=NF;i+=2) { if ($i != "") print $i }}' > $villes
+fi
+log "Nombre de villes: $(wc -l $villes | awk '{print $1}')"
+
+#
+# Types de voies
+#
+if [ -f $types ]; then
+  log "Types de voies déjà récupérées, suivant !"
+else
+  log "Recuperation des types de voies ..."
+  while read ville; do
+    log "Récupération des types de voies pour ${ville} ..."
+    req query "dropdownValueCommune=${ville}"  | awk -vFS="'" '{for(i=2;i<=NF;i+=2) { if ($i != "") print $i }}'
+  done < $villes > $types
+fi
+log "Nombre de types de voies: $(wc -l $types | awk '{print $1}')"
+
+#
+# Noms de rues
+#
+if [ -f $noms ]; then
+  log "Noms de rues déjà récupérées, suivant !"
+else
+  log "Récupération des noms de rues ..."
+  while read type; do
+    log "Récupération des noms de rues pour ${type}"
+    req query "dropDownTypeVoie=$type"  | awk -vFS="'" '{for(i=2;i<=NF;i+=2) { if ($i != "") print $i }}'
+  done < $types > $noms
+fi
+log "Nombre de noms de rue: $(wc -l $noms | awk '{print $1}')"
+
+#
+# Adresses
+#
+if [ -f $adresses ]; then
+  log "Adresses déjà récupérées, suivant !"
+else
+  log "Récupération des adresses ..."
+  while read nom; do
+    log "Récupération des adresses pour ${nom}"
+    req query "dropDownNomVoie=$nom"  | awk -vFS="'" '{for(i=2;i<=NF;i+=2) { if ($i != "") print $i }}'
+  done < $noms > $adresses
+fi
+log "Nombre d'adresses: $(wc -l $adresses | awk '{print $1}')"
+
+#
+# Resultats
+#
+if [ -f $resultats ]; then
+  log "Résultats déjà récupérés, suivant !"
+else
+  while read adresse; do
+    log "Récupération du résultat de ${adresse}"
+    if [[ "$adresse" =~ \|$ ]]; then
+      echo -n $adresse
+    else
+      echo -n "$adresse|"
+    fi
+    req query "dropDownNumVoie=$adresse" | sed 's:^.*>\([^<>]*\)</span.*$:\1:'
+    echo
+  done < $adresses > $resultats
+fi
+log "Nombre de résultats: $(wc -l $resultats | awk '{print $1}')"
+
+#
+# Generation des stats
+#
+if [ -f $stats ]; then
+  log "Stats déjà générées, suivant !"
+else
+  log "Génération des stats ..."
+  awk -f $(dirname $0)/stats.awk < $resultats > $stats
+fi
+log "Stats globales: $(grep ^Total $stats)"

@@ -70,7 +70,7 @@ types=$dir/types
 noms=$dir/noms
 adresses=$dir/adresses
 resultats=$dir/resultats
-stats=$dir/stats
+stats=$dir/stats.csv
 log "Configuration des variables locales: $villes, $types, $noms, $adresses, $resultats, $stats"
 
 

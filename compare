@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+if [ $# -ne 2 ]; then
+  echo "Usage $0 <dir1> <dir2>"
+  exit 1
+fi
+
+dir1="$1"
+dir2="$2"
+
+if [ ! -d "$dir1" ]; then
+  echo "dir1 ($dir1) is not a directory"
+  exit 1
+fi
+if [ ! -d "$dir2" ]; then
+  echo "dir2 ($dir2) is not a directory"
+  exit 1
+fi
+
+res1="$dir1/stats.csv"
+res2="$dir2/stats.csv"
+
+if [ ! -f "$res1" ]; then
+  echo "not stats.csv file in dir1"
+  exit 1
+fi
+if [ ! -f "$res2" ]; then
+  echo "not stats.csv file in dir2"
+  exit 1
+fi
+
+$(dirname $0)/compare.awk $res1 $res2

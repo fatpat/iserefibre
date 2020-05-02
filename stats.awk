@@ -6,7 +6,7 @@ BEGIN{
 
 {
   count[$1]++
-  if ($NF ~ "OUVERTURE EN COURS DE PROGRAMMATION") {
+  if ($NF ~ "En cours de reprise technique") {
     count_programmation[$1]++
   } else {
     count_with_date[$1]++

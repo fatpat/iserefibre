@@ -48,7 +48,7 @@ END {
 
   if ( ndeleted > 0 ) {
     print ""
-    print "Villes supprimmées:"
+    print "Villes supprimées:"
     print "ville", "nombre d'adresses anciennement référencées", "Ancien % adresses commercialisables"
     n=asorti(deleted, sorted)
     for (i=1;i<=n;i++) {
@@ -87,7 +87,7 @@ END {
 
   print ""
   print "Différences globales:"
-  printf("%d villes supprimmées\n", ndeleted)
+  printf("%d villes supprimées\n", ndeleted)
   printf("%d villes ajoutées\n", nnew)
   printf("%d villes modifiées\n", ndiff)
   split(t1,a,FS)

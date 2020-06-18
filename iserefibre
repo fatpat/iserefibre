@@ -158,6 +158,6 @@ if [ -f $stats ]; then
   log "Stats déjà générées, suivant !"
 else
   log "Génération des stats ..."
-  gawk -f $(dirname $0)/stats.gawk < $resultats > $stats
+  gawk -f $(dirname $0)/stats.awk < $resultats > $stats
 fi
 log "Stats globales: $(grep ^Total $stats)"
